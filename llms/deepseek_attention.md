@@ -6,9 +6,9 @@
 
 - **原理：**
 
-  ​					head =![image-20250530164012844](/Users/fangyuan/Documents/yf/workplace/git_code/BrainDump/llms/assets/image-20250530164012844.png)
+  ​					head =![image-20250530164012844](./assets/image-20250530164012844.png)
 
-  ![image-20250530163955295](/Users/fangyuan/Documents/yf/workplace/git_code/BrainDump/llms/assets/image-20250530163955295.png)
+  ![image-20250530163955295](./assets/image-20250530163955295.png)
 
   
 
