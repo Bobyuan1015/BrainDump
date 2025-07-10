@@ -4,13 +4,15 @@
 
 普通多头注意力是Transformer模型的核心组成部分，它通过将注意力机制分成多个“头”来捕捉不同的信息。
 
-- **原理：**
+- 原理：**
 
-  ​					head =![image-20250530164012844](./assets/image-20250530164012844.png)
+$$
+head = \text{softmax}\left( \frac{Q_i K_i^T}{\sqrt{d_k}} \right) V_i
+$$
 
-  ![image-20250530163955295](./assets/image-20250530163955295.png)
-
-  
+$$
+MultiHead(Q, K, V) = \text{Concat}(head_1, \dots, head_h) W_O
+$$
 
 - **好处：** 允许模型在不同的表示子空间中并行地关注来自不同位置的不同信息，从而捕捉到更丰富的语义关系。
 
