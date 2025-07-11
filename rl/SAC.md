@@ -34,17 +34,66 @@ $$ Z(s) = \int \exp \left( \frac{Q(s,a)}{\alpha} \right) da $$
 
 ## 0.3. 变分推断视角的SAC推导
 ### 0.3.1 优化目标建模
-通过变分法建立策略优化与分布匹配的等价关系：
+#### 0.3.1.1 KL散度原始形式
+
+初始优化目标为最小化策略与目标分布的KL散度:
+
+$$ \min_{\theta} D_{KL}\left(\pi_{\theta} \| \frac{\exp \left( Q^{\pi} / \alpha\right)}{Z}  \right) $$
+
+其中:
+
+- 目标分布$ \frac{\exp\left(Q^{\pi}/\alpha\right)}{Z} $是玻尔兹曼分布
+
+- $ Z=\int \exp\left(Q^{\pi}/\alpha\right) d a $为归一化常数
+
+#### 0.3.1.2 KL散度展开推导
+
+根据KL散度定义展开:
+
+$$ D_{KL} = \mathrm{E}_{a\sim\pi_\theta} \left[ \log \frac{\pi_\theta(a|s)}{\exp\left(Q^{\pi}/\alpha\right) / Z} \right] $$
+
+$$ = \mathrm{E}_{a\sim\pi_\theta} \left[ \log \pi_\theta - \left( \frac{Q^{\pi}}{\alpha} - \log Z \right) \right] $$
+
+$$ = \mathrm{E}_{a\sim\pi_\theta} \left[ \log \pi_\theta - \frac{Q^{\pi}}\alpha \right] + \log Z $$
+
+**关键点:**
+
+1. log Z与策略参数θ无关，优化时可忽略
+
+2.优化目标简化为:
+
+$$ \min_\limits{\theta} \mathrm{E} \left[ \log_\pi\theta - \frac{Q^\pi}{\alpha} \right] $$
+
+**从最小化到最大化的等价转换**
+
+通过数学等价变换:
+
+$$ \min_\limits{\theta} \mathrm{E} \left[ \log_\pi\theta - \frac{Q^\pi}{\alpha} \right] \Leftrightarrow \max_\limits{\theta} \mathrm{E} \left[ \frac{Q^\pi}{\alpha} - \log_\pi\theta \right] $$
+
+$$ \Leftrightarrow \max_\limits{\theta} \mathrm{E} \left[ Q^\pi - \alpha \log_\pi\theta \right] $$
+
+### 0.3.2 变分推断在SAC-拉格朗日乘子法求解
+
+**拉格朗日乘子的标准形式**
+
+对于带约束的优化问题：
 
 $$
-\begin{aligned}
-&\min_\theta D_{KL} \left( \pi_\theta \big\| \frac{\exp(Q^\pi/\alpha)}{Z} \right) \\
-= &\min_\theta \mathbb{E}_{a\sim\pi_\theta} \left[ \log\pi_\theta - \frac{Q^\pi}{\alpha} \right] + \text{const}
-\end{aligned}
+\max_x f(x) \quad \text{s.t.} \quad g(x) = 0
 $$
 
-### 0.3.2 拉格朗日乘子法求解
-带约束优化问题：
+其拉格朗日函数为：
+
+$$
+L(x, \lambda) = f(x) - \lambda g(x)
+$$
+
+其中：
+
+- $\lambda$ 是拉格朗日乘子（量度或向量，取决于约束数量）
+- $\lambda$ 负号确保（也可用正号，但需保持一致性）
+
+#### 0.3.2.1 sac转带约束优化问题：
 $$ \max_\pi \mathbb{E}_{a\sim\pi} \left[ Q^\pi(s,a) - \alpha\log\pi \right] \quad \text{s.t.} \quad \int\pi da = 1 $$
 
 构造拉格朗日函数：
@@ -58,6 +107,48 @@ $$ \Rightarrow \pi^* = \exp \left( \frac{Q}{\alpha} - 1 - \lambda \right) $$
 
 归一化处理得最终形式：
 $$ \boxed{\pi^*(a|s) = \frac{\exp(Q^\pi(s,a)/\alpha)}{\int \exp(Q^\pi(s,a)/\alpha) da}} $$
+
+
+
+##### 0.3.2.1.1 变分推断求解
+
+**1.变分法基础**
+
+变分法是处理函数极值的工具（对比微积分处理变量极值）。核心操作是对泛函$ J[f] $求关于函数f的导数（称为泛函导数或变分导数）。
+
+**2.具体推导步骤**
+
+(1)对拉格朗日函数L求泛函导数：
+
+$$ \frac{\delta\mathrm{L}}{\delta\pi}=\frac{Q^{\pi}(s, a)}{\alpha}-\log\pi(a\mid s)-1-\lambda $$
+
+(2)令导数为零（极值必要条件）：
+
+$$ \frac{Q^{\pi}(s, a)}{\alpha}-\log\pi(a\mid s)-1-\lambda=0 $$
+
+(3)解这个方程得到：
+
+$$ \pi^{*}(a\mid s)=\exp\left(\frac{Q^{\pi}(s, a)}{\alpha}-1-\lambda\right) $$
+
+**3.归一化处理**
+
+通过约束条件$ \int\pi da=1 $确定$ \lambda $：
+
+$$ \begin{aligned}
+\int\exp\left(\frac{Q^{\pi}}{\alpha}-1-\lambda\right) da&=1\\
+\Rightarrow e^{-1-\lambda}\int\exp\left(Q^{\pi} /\alpha\right) da&=1\\
+\Rightarrow\pi^{*}(a\mid s)=\frac{\exp\left(Q^{\pi} /\alpha\right)}{\int\exp\left(Q^{\pi} /\alpha\right) da}
+\end{aligned} $$
+
+**3.变分法VS微积分**
+
+| 概念     | 传统微积分   | 变分法                               |
+| -------- | ------------ | ------------------------------------ |
+| 优化对象 | 变量x        | 函数f(x)                             |
+| 极值条件 | $ df/dx=0 $  | $ \delta J/\delta f=0 $              |
+| 典型应用 | 求函数极值点 | 最速降线问题、力学中的最小作用量原理 |
+
+
 
 ## 0.4 SAC目标函数详解
 ### 0.4.1 策略网络目标（Actor Loss）
@@ -107,7 +198,8 @@ $$ J(\alpha) = \mathbb{E}_{s_t \sim \mathcal{D}, a_t \sim \pi_\phi} \left[ -\alp
 | 目标Q网络        | 2    | $\bar{\theta}$ | 稳定目标值计算           |
 | 温度参数         | 1    | $\alpha$       | 调节熵正则化强度         |
 
-###0. 5.2 训练流程
+### 0. 5.2 训练流程
+
 1. **采样**：从经验池$\mathcal{D}$采样$(s_t,a_t,r_t,s_{t+1})$
 2. **Critic更新**：最小化$J_Q(\theta_i)$
 3. **Actor更新**：最大化$J_\pi(\phi)$（重参数化）
@@ -283,29 +375,7 @@ $$
 
 
 
-3. **从值函数到目标函数的转化**
-
-**为什么不能直接用Bellman方程优化?**
-
-   - 计算不可行性：连续动作空间下$\mathbb{E}_{a\sim \pi}[Q^\pi(s, a)]$的精确积分分难以计算。
-   - 采样效率：通过目标函数的期望形式，只需要动作分布采样即可估计梯度。
-   - 策略参数化：目标函数允许用神经网络直接参数化策略，而Bellman方程仅更新值函数。
-
-   这种定义方式完美接轨了值函数学习和策略优化，是SAC算法能够高效处理连续问题的核心设计。
-
-
-
-**通过以下步骤建立关系**：
-
-- 递归展开：将$V^\pi(s)$展开为无限时域的期望：
-
-$$
-V^\pi(s_0) = \mathbb{E}_{\tau \sim \pi} \left[ \sum_{t=0}^{\infty} \gamma^t \left( r(s_t, a_t) + \alpha \log \pi(a_t|s_t) \right) \right]
-$$
-
-这是$J(\pi)$的表达式。
-
-- 策略梯度推导：为其求梯度：
+- 策略梯度推导：
 
 $$
 \nabla_\theta J(\pi) = \mathbb{E}_{s_t \sim p_{\pi}, a_t \sim \pi} \left[ \nabla_\theta \log \pi_\theta(a_t|s_t) \cdot \left( Q^\pi(s_t, a_t) - \alpha \log \pi_\theta(a_t|s_t) \right) \right]
@@ -320,145 +390,6 @@ $$
 其中$Z(s)$是归一化常数。
 
 
-
-# 3. 变分推断在SAC中推导
-
-1. 问题建模：从策略优化到分布匹配
-
-在强化学习中，我们希望找到最优策略$\pi^*(a|s)$最大化累积奖励。引入熵正则化后，目标变为：
-
-$$
-\pi^* = \arg\max_{\pi} \mathbb{E} \left[ \sum_{t=0}^{\infty} \gamma^t \left( r(s_t, a_t) + \alpha H(\pi(a_t | s_t)) \right) \right]
-$$
-
-其中$H(\pi) = -\mathbb{E}_{a\sim \pi}[\log \pi(a|s)]$。
-
-2. 目标分布的构造
-
-通过软Q函数构造目标分布：
-
-$$
-p(a|s) = \frac{\exp(Q^\pi(s, a)/\alpha)}{Z(s)}, \quad Z(s) = \int \exp(Q^\pi(s, a)/\alpha) da
-$$
-
-3. KL散度最小化的详细推导
-
-我们需要最小化策略$\pi(a|s)$目标分布$p(a|s)$的KL散度：
-
-$$
-D_{KL}(\pi_\theta || p) = \mathbb{E}_{a\sim \pi_\theta} \left[ \log \pi_\theta(a|s) - \log p(a|s) \right]
-= \mathbb{E}_{a\sim \pi_\theta} \left[ \log \pi_\theta(a|s) - \frac{Q^\pi(s, a)}{\alpha} + \log Z(s) \right]
-= \mathbb{E}_{a\sim \pi_\theta} \left[ \log \pi_\theta(a|s) - \frac{Q^\pi(s, a)}{\alpha} \right] + \text{const}
-$$
-
-关键步骤：
-
-1. 展开$p(a|s)$的定义
-2. $\log Z(s)$无关$α$，视为常数
-3. 最小化KL散度等价于：
-
-$$
-\min_\theta \mathbb{E}_{a\sim \pi_\theta} \left[ \frac{\log \pi_\theta(a|s) - Q^\pi(s, a)}{\alpha} \right]
-$$
-
-4. 转化为最大化问题
-
-将最小化问题转化为等效的最大化问题：
-
-$$
-\max_\theta \mathbb{E}_{a\sim \pi_\theta} \left[ \frac{Q^\pi(s, a)}{\alpha} - \log \pi_\theta(a|s) \right]
-$$
-
-令$\alpha = 1$时（一般化情形类似），得到SAC的目标函数：
-
-$$
-\max_\theta \mathbb{E}_{a\sim \pi_\theta} \left[ Q^\pi(s, a) - \log \pi_\theta(a|s) \right]
-$$
-
-
-
-## 3.2 通过变分法求极值：
-
-### 3.2.1 拉格朗日乘子的标准形式
-
-对于带约束的优化问题：
-
-$$
-\max_x f(x) \quad \text{s.t.} \quad g(x) = 0
-$$
-
-其拉格朗日函数为：
-
-$$
-L(x, \lambda) = f(x) - \lambda g(x)
-$$
-
-其中：
-- $\lambda$ 是拉格朗日乘子（量度或向量，取决于约束数量）
-- $\lambda$ 负号确保（也可用正号，但需保持一致性）
-
-### 3.2.2 拉格朗日应用SAC
-
-在SAC的策略优化中，我们需要：
-
-$$
-\max_\pi \mathbb{E}_{a\sim \pi} \left[ Q^\pi(s, a) - \alpha \log \pi(a|s) \right]
-\quad \text{s.t.} \quad \int \pi(a|s) da = 1 \quad (\text{概率归一化约束})
-$$
-
-
-1. 构造拉格朗日函数：
-
-$$
-L(\pi, \lambda) = \int \pi(a|s) Q^\pi(s, a) da - \alpha \int \pi(a|s) \log \pi(a|s) da + \lambda \left( 1 - \int \pi(a|s) da \right)
-$$
-
-关键点说明：
-- 奖励项：最大化期望Q值
-
-- 熵项：$-\alpha \int \pi(a|s) \log \pi(a|s) da$ 是香农熵的连续形式，鼓励探索
-
-- 约束项：确保$\pi(a|s)$是有效的概率分布
-
-  
-
-#### 3.2.2.1 变分推断求解
-
-**1.变分法基础**
-
-变分法是处理函数极值的工具（对比微积分处理变量极值）。核心操作是对泛函$ J[f] $求关于函数f的导数（称为泛函导数或变分导数）。
-
-**2.具体推导步骤**
-
-(1)对拉格朗日函数L求泛函导数：
-
-$$ \frac{\delta\mathrm{L}}{\delta\pi}=\frac{Q^{\pi}(s, a)}{\alpha}-\log\pi(a\mid s)-1-\lambda $$
-
-(2)令导数为零（极值必要条件）：
-
-$$ \frac{Q^{\pi}(s, a)}{\alpha}-\log\pi(a\mid s)-1-\lambda=0 $$
-
-(3)解这个方程得到：
-
-$$ \pi^{*}(a\mid s)=\exp\left(\frac{Q^{\pi}(s, a)}{\alpha}-1-\lambda\right) $$
-
-**3.归一化处理**
-
-通过约束条件$ \int\pi da=1 $确定$ \lambda $：
-
-$$ \begin{aligned}
-\int\exp\left(\frac{Q^{\pi}}{\alpha}-1-\lambda\right) da&=1\\
-\Rightarrow e^{-1-\lambda}\int\exp\left(Q^{\pi} /\alpha\right) da&=1\\
-\Rightarrow\pi^{*}(a\mid s)=\frac{\exp\left(Q^{\pi} /\alpha\right)}{\int\exp\left(Q^{\pi} /\alpha\right) da}
-\end{aligned} $$
-
-**3.变分法VS微积分**
-
-| 概念     | 传统微积分   | 变分法                               |
-| -------- | ------------ | ------------------------------------ |
-| 优化对象 | 变量x        | 函数f(x)                             |
-| 极值条件 | $ df/dx=0 $  | $ \delta J/\delta f=0 $              |
-| 典型应用 | 求函数极值点 | 最速降线问题、力学中的最小作用量原理 |
 
 
 
@@ -800,9 +731,146 @@ $$ a=\mu_{\theta}(s)+\sigma_{\theta}(s)\cdot\epsilon,\quad\epsilon\sim\mathrm{N}
 
 $$ Q=\min\left(Q_{\phi_{1}}, Q_{\phi_{2}}\right) $$
 
-## 5.1完整推导链路
 
-<img src="assets/image-20250709113158549.png" width="300">
+
+## 5.1 连续动作（重要）
+
+
+
+### 5.1.1 Actor网络的输出
+
+Actor网络输出两个量：
+
+- **均值（μ）**：表示动作的中心趋势。
+- **标准差（σ）或对数标准差（log σ）**：表示动作的探索程度（随机性）。
+
+这两个量定义了一个高斯分布：
+
+$$ a \sim \mathcal{N}(\mu, \sigma^2) $$
+
+### 5.1.2 重参数化技巧的作用
+
+直接采样 $$ a \sim \mathcal{N}(\mu, \sigma^2) $$ 会导致梯度无法通过采样操作回传（因为采样是离散的、不可导的）。重参数化技巧通过以下方式解决这一问题：
+
+- 从标准正态分布中采样噪声：$$ \epsilon \sim \mathcal{N}(0, 1) $$。
+- 通过可导的线性变换生成动作：
+  $$ a = \mu + \sigma \cdot \epsilon $$
+- 这样，梯度可以通过 $$ \mu $$ 和 $$ \sigma $$ 反向传播，而 $$ \epsilon $$ 是独立的随机变量。并且参数化后分布依然是$$ a \sim \mathcal{N}(\mu, \sigma^2) $$
+
+
+### 5.1.3 均值方差 数学推导（重要）
+1. **方差的定义**
+
+方差（Variance）衡量随机变量 $a$ 的离散程度，定义为：
+
+$$
+Var(a) = E\left[ \left(a - E[a]\right)^2 \right]
+$$
+
+即“随机变量 $a$ 与其期望的平方差的期望”。
+
+2. **计算 $a$ 的期望**
+
+在重参数化中，动作用 $a$ 的生成式为：
+
+$$
+a = \mu + \sigma \cdot \varepsilon, \quad \varepsilon \sim N(0, 1)
+$$
+
+首先计算 $a$ 的期望 $E[a]$：
+
+$$
+E[a] = E[\mu + \sigma \cdot \varepsilon] = \mu + \sigma \cdot E[\varepsilon]
+$$
+
+因为 $\varepsilon$ 是标准正态分布，$E[\varepsilon] = 0$，所以：
+
+$$
+E[a] = \mu
+$$
+
+3. **计算 $a$ 的方差**
+
+根据方差的定义：
+
+$$
+Var(a) = E\left[ \left(a - E[a]\right)^2 \right] = E\left[ \left(\mu + \sigma \cdot \varepsilon - \mu\right)^2 \right] = E\left[ \left(\sigma \cdot \varepsilon\right)^2 \right]
+$$
+
+展开平方项：
+
+$$
+Var(a) = E\left[ \sigma^2 \cdot \varepsilon^2 \right] = \sigma^2 \cdot E\left[ \varepsilon^2 \right]
+$$
+
+
+
+4. **计算 $E[\epsilon^2]$**
+对于标准正态分布 $\epsilon \sim N(0, 1)$：
+- 其方差为 
+$$
+Var(\epsilon)=1
+$$
+- 方差的定义是 
+$$
+Var(\epsilon)=E[\epsilon^2]-(E[\epsilon])^2
+$$
+- 因为 $E[\epsilon]=0$，所以：
+$$
+Var(\epsilon)=E[\epsilon^2]=1
+$$
+因此：
+$$
+E[\epsilon^2]=1
+$$
+
+5. **最终方差表达式**
+将 $E[\epsilon^2]=1$ 代入方差公式：
+$$
+Var(a)=\sigma^2\cdot1=\sigma^2
+$$
+
+### 5.1.4 对比DDPG的动作采样
+从策略网络输出到最终动作的角度，SAC通常优于DDPG，原因如下：
+
+**1. 探索效率：**
+
+- SAC的动作直接从概率分布中采样，探索性内嵌于策略的随机性（通过 $$\sigma_{\theta}(s_{t})$$ 和熵正则化 $$\alpha \mathcal{H}$$ ）。这使得 SAC 的探索更自然，能动态适应环境，而 DDPG 依赖外部噪声，探索效果受限于噪声设计和超参数调优。
+
+- 公式对比：
+
+  - DDPG：$$a_{t}=\pi_{\theta}(s_{t})+\mathcal{N}_{t}$$，噪声 $$\mathcal{N}_{t}$$ 是固定的启发式设计。
+
+  - SAC：$$a_{t}\sim \mathcal{N}(\mu_{\theta}(s_{t}),\sigma_{\theta}(s_{t})^{2})$$，随机性由网络学习，熵项 $$\alpha \mathcal{H}$$ 鼓励多样性。
+
+**2. 动作分布的灵活性：**
+
+- SAC 的策略网络输出动作分布（均值和方差），能够建模动作空间的不确定性，适合复杂或动态环境。
+
+- DDPG 输出单一动作，缺乏对不确定性的建模，动作生成较为单一。
+
+**3. 鲁棒性：**
+
+- SAC 的策略分布参数由神经网络学习，结合熵正则化，能自适应地调整动作的随机性，减少对超参数的敏感性。
+
+- DDPG 的噪声参数（如 $$\sigma$$）需要手动调优，调参不当可能导致探索不足或动作过于随机。
+
+**4. DDPG 的潜在优势：**
+
+- 计算效率：DDPG 的动作生成简单（直接输出动作加噪声），计算开销低于 SAC 的分布采样和熵计算。
+
+- 适合确定性场景：在测试阶段，DDPG 直接使用确定性动作 $$\pi_{\theta}(s_{t})$$，可能更适合需要精确控制的场景（如某些机器人任务）。
+
+
+
+### 5.1.5推理时使用的策略
+使用均值动作（deterministic action）
+这在推理阶段是常见做法，因为你通常想要一个确定性行为。
+
+从策略网络拿到一个高斯分布的均值，然后直接取均值作为动作：
+
+2. 继续采样动作（stochastic action）
+如果你希望保留一些探索行为，比如在部署到真实环境前的测试阶段，仍然可以使用采样：
 
 ## 5.2关键点总结
 
