@@ -13,7 +13,7 @@
 
 ### 3.1.1 异步多进程 Qlearning（初）
 
-<img src="assets/image-20250703092736010.png" width="500">
+<img src="assets/image-20250703092736010.png" width="400">
 
 **t**：线程步计数器 
 

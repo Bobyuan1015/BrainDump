@@ -1,4 +1,4 @@
-# 一、强化学习的目标
+# 1、强化学习的目标
 
 强化学习的目标是通过学习一个策略（policy）或价值函数（value function），使智能体在环境中获得的期望累计奖励最大化。常见的优化目标包括：
 
@@ -6,13 +6,283 @@
 2. **价值函数优化目标**：优化状态价值函数 $V(s)$ 或动作价值函数 $Q(s, a)$，通过价值迭代或策略评估实现。
 3. **混合目标**：结合策略和价值函数，例如在Actor-Critic方法中同时优化策略和价值估计。
 
+
+
+
+## 1.1 状态价值函数（V函数）
+
+**定义**：在策略 $\pi$ 下，从状态 $s_t$ 开始获得的长期期望回报。
+
+$$
+V^{\pi}(s_t)
+=
+\mathbb{E}_{\tau \sim \pi}
+\left[
+\sum_{k=0}^{\infty} \gamma^{k} r_{t+k}
+\mid s_t
+\right]
+$$
+
 ---
 
-# 二、求导的分类
+## 1.2 动作价值函数（Q函数）
+
+**定义**：在策略 $\pi$ 下，从状态 $s_t$ 执行动作 $a_t$ 后，获得的长期期望回报。
+
+$$
+Q^{\pi}(s_t, a_t)
+=
+\mathbb{E}_{\tau \sim \pi}
+\left[
+\sum_{k=0}^{\infty} \gamma^{k} r_{t+k}
+\mid s_t, a_t
+\right]
+$$
+
+---
+
+## 1.3 V函数与Q函数的比较
+
+| 特性     | V函数 $V^{\pi}(s_t)$ | Q函数 $Q^{\pi}(s_t, a_t)$ |
+| -------- | --------------------- | -------------------------- |
+| **输入变量** | 状态 $s_t$ | 状态 $s_t$ + 动作 $a_t$ |
+| **评估对象** | 策略 $\pi$ 在状态 $s_t$ 的长期价值 | 策略 $\pi$ 下执行 $a_t$ 后的长期价值 |
+| **关系式** | $ V^{\pi}(s_t) = \mathbb{E}_{a_t \sim \pi} \left[ Q^{\pi}(s_t, a_t) \right] $ | $ Q^{\pi}(s_t, a_t) = r_t + \gamma \mathbb{E}_{s_{t+1}} \left[ V^{\pi}(s_{t+1}) \right] $ |
+
+---
+
+## 1.4 策略梯度定理推导
+
+### 1.4.1 目标函数定义
+
+定义策略参数 $\theta$ 下的目标函数为：
+
+$$
+J(\theta)
+=
+\mathbb{E}_{\tau \sim \pi_{\theta}}
+\left[
+\sum_{t=0}^{\infty} \gamma^t r_t
+\right]
+$$
+
+其中，轨迹 $\tau = (s_0, a_0, s_1, a_1, \dots)$ 服从策略 $\pi_{\theta}$。
+
+---
+
+### 1.4.2 梯度形式展开
+
+根据期望定义：
+
+$$
+\nabla_{\theta} J(\theta)
+=
+\nabla_{\theta}
+\int P(\tau | \theta) R(\tau) d\tau
+$$
+
+其中：
+
+- $P(\tau | \theta)$：轨迹概率
+- $R(\tau)$：轨迹回报
+
+---
+
+### 1.4.3 使用对数技巧（Likelihood Ratio Trick）
+
+由于：
+
+$$
+\nabla_{\theta} P(\tau | \theta)
+=
+P(\tau | \theta) \nabla_{\theta} \log P(\tau | \theta)
+$$
+
+因此有：
+
+$$
+\nabla_{\theta} J(\theta)
+=
+\int P(\tau | \theta)
+\nabla_{\theta} \log P(\tau | \theta)
+R(\tau) d\tau
+=
+\mathbb{E}_{\tau \sim \pi_{\theta}}
+\left[
+\nabla_{\theta} \log P(\tau | \theta)
+R(\tau)
+\right]
+$$
+
+---
+
+### 1.4.4 轨迹概率的分解
+
+轨迹概率可分解为：
+
+$$
+P(\tau | \theta)
+=
+p(s_0)
+\prod_{t=0}^{\infty}
+\pi_{\theta}(a_t | s_t)
+p(s_{t+1} | s_t, a_t)
+$$
+
+其中：
+
+- $p(s_0)$: 初始状态分布
+- $\pi_{\theta}(a_t | s_t)$: 策略选择动作概率
+- $p(s_{t+1} | s_t, a_t)$: 环境状态转移概率
+
+---
+
+取对数：
+
+$$
+\log P(\tau | \theta)
+=
+\log p(s_0)
++
+\sum_{t=0}^{\infty}
+\left[
+\log \pi_{\theta}(a_t | s_t)
++
+\log p(s_{t+1} | s_t, a_t)
+\right]
+$$
+
+---
+
+由于：
+
+- $\log p(s_0)$ 与参数 $\theta$ 无关
+- $\log p(s_{t+1} | s_t, a_t)$ 也与参数 $\theta$ 无关
+
+所以：
+
+$$
+\nabla_{\theta} \log P(\tau | \theta)
+=
+\sum_{t=0}^{\infty}
+\nabla_{\theta}
+\log \pi_{\theta}(a_t | s_t)
+$$
+
+---
+
+### 1.4.5 将梯度代入目标函数梯度表达式
+
+因此：
+
+$$
+\nabla_{\theta} J(\theta)
+=
+\mathbb{E}_{\tau \sim \pi_{\theta}}
+\left[
+R(\tau)
+\sum_{t=0}^{\infty}
+\nabla_{\theta}
+\log \pi_{\theta}(a_t | s_t)
+\right]
+$$
+
+---
+
+### 1.4.6 引入折扣因子
+
+由于：
+
+$$
+R(\tau)
+=
+\sum_{t=0}^{\infty}
+\gamma^t r_t
+$$
+
+代入上式：
+
+$$
+\nabla_{\theta} J(\theta)
+=
+\mathbb{E}_{\tau \sim \pi_{\theta}}
+\left[
+\left(
+\sum_{t=0}^{\infty}
+\gamma^t r_t
+\right)
+\left(
+\sum_{k=0}^{\infty}
+\nabla_{\theta}
+\log \pi_{\theta}(a_k | s_k)
+\right)
+\right]
+$$
+
+---
+
+### 1.4.7 引入因果关系（Causality Correction）
+
+由于动作 $a_k$ 只影响 $t \ge k$ 的奖励，可将求和顺序调整为：
+
+$$
+\nabla_{\theta} J(\theta)
+=
+\mathbb{E}_{\tau \sim \pi_{\theta}}
+\left[
+\sum_{k=0}^{\infty}
+\nabla_{\theta}
+\log \pi_{\theta}(a_k | s_k)
+\left(
+\sum_{t=k}^{\infty}
+\gamma^t r_t
+\right)
+\right]
+$$
+
+---
+
+### 1.4.8 定义动作价值函数 Q
+
+定义：
+
+$$
+Q^{\pi}(s_k, a_k)
+=
+\mathbb{E}_{\tau \sim \pi_{\theta}}
+\left[
+\sum_{t=k}^{\infty}
+\gamma^t r_t
+\mid s_k, a_k
+\right]
+$$
+
+---
+
+### 1.4.9 策略梯度定理最终形式
+
+将上述表示为 Q 函数，得到 **策略梯度定理**：
+
+$$
+\nabla_{\theta} J(\theta)
+=
+\mathbb{E}_{\tau \sim \pi_{\theta}}
+\left[
+\sum_{t=0}^{\infty}
+\nabla_{\theta}
+\log \pi_{\theta}(a_t | s_t)
+Q^{\pi}(s_t, a_t)
+\right]
+$$
+
+---
+
+
+# 2、求导的分类
 
 在强化学习中，求导主要用于优化目标函数，根据方法的不同，求导可以分为以下几类：
 
-## 1. 策略梯度方法（Policy Gradient Methods）
+## 2.1 策略梯度方法（Policy Gradient Methods）
 
 策略梯度方法直接对策略的参数进行优化，目标是最大化期望累积奖励 $J(\theta)$，其中 $\theta$ 是策略 $\pi_{\theta}(a|s)$ 的参数。
 
@@ -33,6 +303,7 @@
   其中，$Q^{\pi_{\theta}}(s_t, a_t)$ 是动作价值函数，表示在状态 $s_t$ 采取动作 $a_t$ 后的期望累积奖励。
 
 - **说明：**
+  
   - 策略梯度通过对策略的对数概率求导，利用动作价值函数 $Q$ 来调整策略。
   - 实际中，常用蒙特卡洛采样或时序差分（TD）方法估计 $Q$ 值。
   - 常见算法：REINFORCE、TRPO、PPO。
@@ -43,7 +314,7 @@
 | TRPO      | 信任域约束+二阶优化   | 带约束的优化问题   | 高维连续动作空间（如机器人控制） |
 | PPO       | 裁剪目标函数+一阶优化 | 无约束优化（Adam） | 通用场景，工业级应用             |
 
-## 2. 价值函数优化（Value-Based Methods）
+## 2.2 价值函数优化（Value-Based Methods）
 
 价值函数优化的目标是最小化价值函数的预测误差，常见于Q-learning或SARSA等方法。
 
@@ -65,7 +336,7 @@
   - 求导的目的是调整参数 $\theta$，使Q函数逼近真实的动作价值。
   - 常用于深度Q网络（DQN），通过神经网络参数化 $Q(s, a; \theta)$。
 
-## 3. Actor-Critic方法
+## 2.3 Actor-Critic方法
 
 Actor-Critic方法结合策略梯度和价值函数优化，分为Actor（策略）和Critic（价值函数）两部分。
 
@@ -113,9 +384,9 @@ Actor-Critic方法结合策略梯度和价值函数优化，分为Actor（策略
 
 
 
-# 三. 各算法Actor优化目标分析
+# 3. 各算法Actor优化目标分析
 
-### 2.1 DDPG（Deep Deterministic Policy Gradient）
+## 3.1 DDPG（Deep Deterministic Policy Gradient）
 
 - **Actor优化目标**：最大化Q值。
 
@@ -134,10 +405,12 @@ Actor-Critic方法结合策略梯度和价值函数优化，分为Actor（策略
   - **特点**：Actor直接通过Critic的Q值梯度优化策略，目标是使输出的动作**最大化Q值**。
 
   - **是否最大化Q值**：是，直接最大化$$ Q(s, a) $$。
+  
+  
 
 ---
 
-### 2.2 Actor-Critic（经典Actor-Critic）
+## 3.2 Actor-Critic（经典Actor-Critic）
 
 - **Actor优化目标**：最大化期望回报，通常通过Q值或优势函数。
 
@@ -158,8 +431,10 @@ Actor-Critic方法结合策略梯度和价值函数优化，分为Actor（策略
   - **是否最大化Q值**：是，但通过对动作行为加权Q值实现，而不是直接优化确定动作的Q值。
 
   - **差异**：DDPG直接优化确定性动作的Q值，而经典Actor-Critic通过调整动作分布优化期望Q值。
+  
+  
 
-### 2.3 A2C（Advantage Actor-Critic）
+## 3.3 A2C（Advantage Actor-Critic）
 
 - **Actor优化目标**：最大化优势函数（Advantage Function）。
 
@@ -180,10 +455,12 @@ Actor-Critic方法结合策略梯度和价值函数优化，分为Actor（策略
   - **是否最大化Q值**：间接最大化Q值，通过优势函数 $$ A(s, a) $$ 优化策略，但目标不是直接最大化 $$ Q(s, a) $$，而是调整动作分布以提高期望回报。
 
   - **差异**：A2C使用优势函数而非直接Q值，适用于随机策略，且更适合离散或连续动作空间。
+  
+  
 
 ---
 
-### 2.4 SAC（Soft Actor-Critic）
+## 3.4 SAC（Soft Actor-Critic）
 
 - **Actor优化目标**：最大化期望回报与熵的组合。
 
@@ -207,9 +484,11 @@ Actor-Critic方法结合策略梯度和价值函数优化，分为Actor（策略
 
 - **差异**：SAC的Actor优化目标包含熵项、鼓励探索，而DDPG通过外加噪声实现探索。
 
+
+
 ---
 
-### 2.5 PPO（Proximal Policy Optimization）
+## 3.5 PPO（Proximal Policy Optimization）
 
 - **Actor优化目标**：最大化剪切比率加权的优势函数。
 
@@ -225,10 +504,12 @@ Actor-Critic方法结合策略梯度和价值函数优化，分为Actor（策略
   - **是否最大化Q值**：间接通过优势函数优化期望回报，但不直接最大化 $$ Q(s, a) $$。
 
   - **差异**：PPO关注优势函数和策略稳定，而DDPG直接优化确定性动作的Q值。
+  
+  
 
 ---
 
-### 2.6 TRPO（Trust Region Policy Optimization）
+## 3.6 TRPO（Trust Region Policy Optimization）
 
 - **Actor优化目标**：最大化约束下的期望优势函数。
 
@@ -247,8 +528,10 @@ Actor-Critic方法结合策略梯度和价值函数优化，分为Actor（策略
   - **是否最大化Q值**：间接通过优势函数优化期望回报，但不直接最大化 $$ Q(s, a) $$。
 
   - **差异**：TRPO使用信任区约束和优势函数，区别于DDPG的确定性策略更注重策略的稳定性。
+  
+  
 
-### 2.7 TD3（Twin Delayed Deep Deterministic Policy Gradient）
+## 3.7 TD3（Twin Delayed Deep Deterministic Policy Gradient）
 
 - **Actor优化目标**：最大化Q值（与DDPG相同）。
 
@@ -272,8 +555,6 @@ Actor-Critic方法结合策略梯度和价值函数优化，分为Actor（策略
 
 
 
-
-
 ### 3. 比较总结
 
 | 算法         | 策略类型 | Actor优化目标                                | 是否直接最大化Q值 | 关键差异                                             |
@@ -290,7 +571,7 @@ Actor-Critic方法结合策略梯度和价值函数优化，分为Actor（策略
 
 
 
-# 四.TD基于Q、V、对比
+# 4.TD基于Q、V、对比
 
 
 
