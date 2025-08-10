@@ -78,6 +78,8 @@ $$ J(\theta)=\mathbb{E}_{\tau \sim \pi_{\theta}}\left[\sum_{t=0}^{T} \gamma^{t} 
 
 $$ \nabla_{\theta} J(\theta)=\mathbb{E}_{\tau \sim \pi_{\theta}}\left[\sum_{t=0}^{T} \nabla_{\theta} \log \pi_{\theta}\left(a_{t} \mid s_{t}\right) A\left(s_{t}, a_{t}\right)\right] $$
 
+
+
 ## 2.2 优势函数
 其中，$A\left(s_{t}, a_{t}\right)$ 是优势函数，表示动作$a_{t}$在状态$s_{t}$下的优越性，常用如下估计：
 
@@ -103,6 +105,10 @@ $$ \mathbb{E}\left[\mathrm{KL}\left(\pi_{\theta_{\text{old}}} \| \pi_{\theta}\ri
 
 其中KL是Kullback-Leibler散度，用于限制新旧策略的差异。然而，TRPO需要计算Hessian矩阵的逆，计算复杂。
 
+
+
+
+
 ## 2.4 PPO的裁剪代理目标
 
 PPO改进了TRPO，提出了一种简单的代理目标函数，避免复杂约束。PPO的优化目标为：
@@ -119,12 +125,16 @@ $$ L^{\mathrm{CLIP}}(\theta)=\mathbb{E}_{t}\left[\min \left(r_{t}(\theta) \hat{A
 - 当$\hat{A}_t>0$时，限制$r_t(\theta)$过大，防止过度乐观更新
 - 当$\hat{A}_t<0$时，限制$r_t(\theta)$过小，防止过度悲观更新
 
+
+
 ### 2.4.1 值函数损失
 PPO同时优化值函数：
 
 $$ L^{\mathrm{VF}}(\theta)=\mathbb{E}_t\left[\left(V_\theta(s_t)-V_t^{\mathrm{target}}\right)^2\right] $$
 
 其中$V_t^{\mathrm{target}}$通过回报或GAE计算。
+
+
 
 ### 2.4.1 总损失函数
 
@@ -185,22 +195,10 @@ $$ \nabla_{\theta} H=-\sum_{a}\left[\nabla_{\theta} \pi_{\theta}\left(a \mid s_{
 
 $$ \pi_{\theta}\left(a \mid s_{t}\right) \cdot \nabla_{\theta} \log \pi_{\theta}\left(a \mid s_{t}\right)=\nabla_{\theta} \pi_{\theta}\left(a \mid s_{t}\right) $$
 
-
-
-#### 2.4.1.3 熵项梯度推导过程
-
-**简化梯度项**
-因此梯度表达式简化为：
-
-$$ \nabla_{\theta} H=-\sum_{a}\left[\nabla_{\theta} \pi_{\theta}\left(a \mid s_{t}\right) \cdot \log \pi_{\theta}\left(a \mid s_{t}\right)+\nabla_{\theta} \pi_{\theta}\left(a \mid s_{t}\right)\right] $$
-
-**合并同类项**
-将两部分梯度合并：
-
 $$ \nabla_{\theta} H=-\sum_{a} \nabla_{\theta} \pi_{\theta}\left(a \mid s_{t}\right)\left(\log \pi_{\theta}\left(a \mid s_{t}\right)+1\right) $$
 
 **转换为期望形式**
-利用期望的梯度估计（类似策略梯度定理），将求和转换为期望：
+利用期望的梯度估计（对数导数恒等式），将求和转换为期望：
 
 $$ \nabla_{\theta} H=-\mathrm{E}_{a_{t} \sim \pi_{\theta}}\left[\left(\log \pi_{\theta}\left(a_{t} \mid s_{t}\right)+1\right) \nabla_{\theta} \log \pi_{\theta}\left(a_{t} \mid s_{t}\right)\right] $$
 
@@ -213,13 +211,14 @@ $$ \nabla_{\theta} H=-\mathrm{E}_{a_{t} \sim \pi_{\theta}}\left[\left(\log \pi_{
 **梯度更新增大动作概率的机制**
 
 1. **梯度方向分析**：
+   
    - 梯度表达式中的关键项：$(\log\pi_\theta +1)\nabla_\theta\log\pi_\theta$
    - 当$\pi_\theta(a_t|s_t)$较小时：
      * $\log\pi_\theta$为较大负值（如$\pi=0.1→\log\pi≈-2.3$）
      * $(\log\pi+1)$为负（$-2.3+1=-1.3$）
      * 前有总体负号：$-(-1.3)=+1.3$ → 正梯度方向
    - 更新效果：$\theta \leftarrow \theta + \alpha\cdot$(正梯度) → $\pi_\theta$增大
-
+   
 2. **熵提升原理**：
    
    - 熵$H$在均匀分布时最大
